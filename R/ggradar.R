@@ -5,26 +5,18 @@
 #' @param font.radar text font family
 #' @param values.radar values to print at minimum, 'average', and maximum gridlines
 #' @param axis.labels  names of axis labels if other than column names supplied via plot.data
-#' @param grid.min value at which mininum grid line is plotted
-#' @param grid.mid value at which 'average' grid line is plotted
-#' @param grid.max value at which maximum grid line is plotted
+#' @param grid.values values at which grid line is plotted, has to be uneven
 #' @param centre.y value of y at centre of plot
 #' @param plot.extent.x.sf controls relative size of plot horizontally
 #' @param plot.extent.y.sf controls relative size of plot vertically
 #' @param x.centre.range controls axis label alignment
 #' @param label.centre.y whether value of y at centre of plot should be labelled
 #' @param grid.line.width width of gridline
-#' @param gridline.min.linetype line type of minimum gridline
-#' @param gridline.mid.linetype line type of 'average' gridline
-#' @param gridline.max.linetype line type of maximum gridline
-#' @param gridline.min.colour colour of minimum gridline
-#' @param gridline.mid.colour colour of 'average' gridline
-#' @param gridline.max.colour colour of maximum gridline
+#' @param gridline.linetype line type of minimum gridline
+#' @param gridline.colour colour of gridlines
 #' @param grid.label.size text size of gridline label
 #' @param gridline.label.offset displacement to left/right of central vertical axis
-#' @param label.gridline.min whether or not to label the mininum gridline
-#' @param label.gridline.mid whether or not to label the 'mininum'average' gridline
-#' @param label.gridline.max whether or not to label the maximum gridline
+#' @param label.gridline whether or not to label the gridlines
 #' @param axis.label.offset vertical displacement of axis labels from maximum grid line, measured relative to circle diameter
 #' @param axis.label.size text size of axis label
 #' @param axis.line.colour colour of axis line
@@ -42,6 +34,9 @@
 #' @param fill.alpha if filling polygons, transparency values
 #'
 #' @import ggplot2
+#' @importFrom dplyr filter row_number bind_rows
+#' @importFrom magrittr %>%
+#' 
 #' @return a ggplot object
 #'
 #' @name ggradar-package
@@ -69,28 +64,20 @@
 ggradar <- function(plot.data,
                     base.size = 15,
                     font.radar = "sans",
-                    values.radar = c("0%", "50%", "100%"),
+                    values.radar = paste0(round(grid.values*100,0),"%"),
                     axis.labels = colnames(plot.data)[-1],
-                    grid.min = 0, # 10,
-                    grid.mid = 0.5, # 50,
-                    grid.max = 1, # 100,
-                    centre.y = grid.min - ((1 / 9) * (grid.max - grid.min)),
+                    grid.values = c(0,0.5,1),
+                    centre.y = grid.min - ((1 / 9) * (grid.values[length(grid.values)] - grid.values[1])),
                     plot.extent.x.sf = 1,
                     plot.extent.y.sf = 1.2,
-                    x.centre.range = 0.02 * (grid.max - centre.y),
+                    x.centre.range = 0.02 * (grid.values[length(grid.values)] - centre.y),
                     label.centre.y = FALSE,
                     grid.line.width = 0.5,
-                    gridline.min.linetype = "longdash",
-                    gridline.mid.linetype = "longdash",
-                    gridline.max.linetype = "longdash",
-                    gridline.min.colour = "grey",
-                    gridline.mid.colour = "#007A87",
-                    gridline.max.colour = "grey",
+                    gridline.linetype = rep("longdash",length(grid.values)),
+                    gridline.colour = rep("grey",length(grid.values)),
                     grid.label.size = 6,
-                    gridline.label.offset = -0.1 * (grid.max - centre.y),
-                    label.gridline.min = TRUE,
-                    label.gridline.mid = TRUE,
-                    label.gridline.max = TRUE,
+                    gridline.label.offset = -0.1 * (grid.values[length(grid.values)] - centre.y),
+                    label.gridline = rep(TRUE,length(grid.values)),
                     axis.label.offset = 1.15,
                     axis.label.size = 5,
                     axis.line.colour = "grey",
@@ -103,10 +90,13 @@ ggradar <- function(plot.data,
                     legend.title = "",
                     plot.title = "",
                     legend.text.size = 14,
-
                     legend.position = "left",
                     fill = FALSE,
                     fill.alpha = 0.5) {
+  # Additional code
+  grid.max <- grid.values[length(grid.values)]
+  grid.min <- grid.values[1]
+  
   plot.data <- as.data.frame(plot.data)
 
   if(!is.factor(plot.data[, 1])) {
@@ -169,27 +159,15 @@ ggradar <- function(plot.data,
   # (e) Create Circular grid-lines + labels
   # caclulate the cooridinates required to plot circular grid-lines for three user-specified
   # y-axis values: min, mid and max [grid.min; grid.mid; grid.max]
-  gridline <- NULL
-  gridline$min$path <- funcCircleCoords(c(0, 0), grid.min + abs(centre.y), npoints = 360)
-  gridline$mid$path <- funcCircleCoords(c(0, 0), grid.mid + abs(centre.y), npoints = 360)
-  gridline$max$path <- funcCircleCoords(c(0, 0), grid.max + abs(centre.y), npoints = 360)
-  # print(head(gridline$max$path))
-  # gridline labels
-  gridline$min$label <- data.frame(
-    x = gridline.label.offset, y = grid.min + abs(centre.y),
-    text = as.character(grid.min)
-  )
-  gridline$max$label <- data.frame(
-    x = gridline.label.offset, y = grid.max + abs(centre.y),
-    text = as.character(grid.max)
-  )
-  gridline$mid$label <- data.frame(
-    x = gridline.label.offset, y = grid.mid + abs(centre.y),
-    text = as.character(grid.mid)
-  )
-  # print(gridline$min$label)
-  # print(gridline$max$label)
-  # print(gridline$mid$label)
+  gridline <- lapply(1:length(grid.values), list)
+  for (i in 1:length(grid.values)){
+    gridline[[i]]$path <- funcCircleCoords(c(0, 0), grid.values[i] + abs(centre.y), npoints = 360)
+    gridline[[i]]$label <- data.frame(
+      x = gridline.label.offset, y = grid.values[i] + abs(centre.y),
+      text = as.character(grid.values[i]), labels = values.radar[i]
+    )
+  }
+
   ### Start building up the radar plot
 
   # Declare 'theme_clear', with or without a plot legend as required by user
@@ -227,18 +205,12 @@ ggradar <- function(plot.data,
     scale_y_continuous(limits = c(-plot.extent.y, plot.extent.y))
 
   # ... + circular grid-lines at 'min', 'mid' and 'max' y-axis values
-  base <- base + geom_path(
-    data = gridline$min$path, aes(x = x, y = y),
-    lty = gridline.min.linetype, colour = gridline.min.colour, size = grid.line.width
-  )
-  base <- base + geom_path(
-    data = gridline$mid$path, aes(x = x, y = y),
-    lty = gridline.mid.linetype, colour = gridline.mid.colour, size = grid.line.width
-  )
-  base <- base + geom_path(
-    data = gridline$max$path, aes(x = x, y = y),
-    lty = gridline.max.linetype, colour = gridline.max.colour, size = grid.line.width
-  )
+  for (i in 1:length(grid.values)){
+    base <- base + geom_path(
+      data = gridline[[i]]$path, aes(x = x, y = y),
+      lty = gridline.linetype[i], colour = gridline.colour[i], size = grid.line.width
+    )
+  }
 
   # + axis labels for any vertical axes [abs(x)<=x.centre.range]
   base <- base + geom_text(
@@ -254,7 +226,7 @@ ggradar <- function(plot.data,
   base <- base + theme_clear
   #  + background circle against which to plot radar data
   base <- base + geom_polygon(
-    data = gridline$max$path, aes(x, y),
+    data = gridline[[length(grid.values)]]$path, aes(x, y),
     fill = background.circle.colour,
     alpha = background.circle.transparency
   )
@@ -281,20 +253,22 @@ ggradar <- function(plot.data,
     base <- base + geom_polygon(data = group$path, aes_string(x = "x", y = "y", group = theGroupName, fill = theGroupName), alpha = fill.alpha)
   }
 
-
   # ... + amend Legend title
   if (plot.legend == TRUE) base <- base + labs(colour = legend.title, size = legend.text.size)
 
   # ... + grid-line labels (max; mid; min)
-  if (label.gridline.min == TRUE) {
-    base <- base + geom_text(aes(x = x, y = y, label = values.radar[1]), data = gridline$min$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
+  if(sum(label.gridline)>=0){
+    gridLabelData <- bind_rows(lapply(gridline,FUN=function(x) x$label)) %>% 
+      filter(row_number() %in% which(label.gridline)) 
+    base <- base + geom_text(aes(x = x, y = y, label = labels), 
+                             data = gridLabelData, 
+                             inherit.aes=FALSE,
+                             size = grid.label.size * 0.8, hjust = 1, family = font.radar)
   }
-  if (label.gridline.mid == TRUE) {
-    base <- base + geom_text(aes(x = x, y = y, label = values.radar[2]), data = gridline$mid$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
-  }
-  if (label.gridline.max == TRUE) {
-    base <- base + geom_text(aes(x = x, y = y, label = values.radar[3]), data = gridline$max$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
-  }
+
+  #base <- base + geom_text(aes(x = x, y = y, label = values.radar[1]), data = gridline[[1]]$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
+  #base <- base + geom_text(aes(x = x, y = y, label = values.radar[2]), data = gridline[[2]]$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
+  #base <- base + geom_text(aes(x = x, y = y, label = values.radar[3]), data = gridline[[3]]$label, size = grid.label.size * 0.8, hjust = 1, family = font.radar)
   # ... + centre.y label if required [i.e. value of y at centre of plot circle]
   if (label.centre.y == TRUE) {
     centre.y.label <- data.frame(x = 0, y = 0, text = as.character(centre.y))

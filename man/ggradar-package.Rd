@@ -13,28 +13,20 @@ ggradar(
   plot.data,
   base.size = 15,
   font.radar = "sans",
-  values.radar = c("0\%", "50\%", "100\%"),
+  values.radar = paste0(round(grid.values * 100, 0), "\%"),
   axis.labels = colnames(plot.data)[-1],
-  grid.min = 0,
-  grid.mid = 0.5,
-  grid.max = 1,
-  centre.y = grid.min - ((1/9) * (grid.max - grid.min)),
+  grid.values = c(0, 0.5, 1),
+  centre.y = grid.min - ((1/9) * (grid.values[length(grid.values)] - grid.values[1])),
   plot.extent.x.sf = 1,
   plot.extent.y.sf = 1.2,
-  x.centre.range = 0.02 * (grid.max - centre.y),
+  x.centre.range = 0.02 * (grid.values[length(grid.values)] - centre.y),
   label.centre.y = FALSE,
   grid.line.width = 0.5,
-  gridline.min.linetype = "longdash",
-  gridline.mid.linetype = "longdash",
-  gridline.max.linetype = "longdash",
-  gridline.min.colour = "grey",
-  gridline.mid.colour = "#007A87",
-  gridline.max.colour = "grey",
+  gridline.linetype = rep("longdash", length(grid.values)),
+  gridline.colour = rep("grey", length(grid.values)),
   grid.label.size = 6,
-  gridline.label.offset = -0.1 * (grid.max - centre.y),
-  label.gridline.min = TRUE,
-  label.gridline.mid = TRUE,
-  label.gridline.max = TRUE,
+  gridline.label.offset = -0.1 * (grid.values[length(grid.values)] - centre.y),
+  label.gridline = rep(TRUE, length(grid.values)),
   axis.label.offset = 1.15,
   axis.label.size = 5,
   axis.line.colour = "grey",
@@ -63,11 +55,7 @@ ggradar(
 
 \item{axis.labels}{names of axis labels if other than column names supplied via plot.data}
 
-\item{grid.min}{value at which mininum grid line is plotted}
-
-\item{grid.mid}{value at which 'average' grid line is plotted}
-
-\item{grid.max}{value at which maximum grid line is plotted}
+\item{grid.values}{values at which grid line is plotted, has to be uneven}
 
 \item{centre.y}{value of y at centre of plot}
 
@@ -81,27 +69,15 @@ ggradar(
 
 \item{grid.line.width}{width of gridline}
 
-\item{gridline.min.linetype}{line type of minimum gridline}
+\item{gridline.linetype}{line type of minimum gridline}
 
-\item{gridline.mid.linetype}{line type of 'average' gridline}
-
-\item{gridline.max.linetype}{line type of maximum gridline}
-
-\item{gridline.min.colour}{colour of minimum gridline}
-
-\item{gridline.mid.colour}{colour of 'average' gridline}
-
-\item{gridline.max.colour}{colour of maximum gridline}
+\item{gridline.colour}{colour of gridlines}
 
 \item{grid.label.size}{text size of gridline label}
 
 \item{gridline.label.offset}{displacement to left/right of central vertical axis}
 
-\item{label.gridline.min}{whether or not to label the mininum gridline}
-
-\item{label.gridline.mid}{whether or not to label the 'mininum'average' gridline}
-
-\item{label.gridline.max}{whether or not to label the maximum gridline}
+\item{label.gridline}{whether or not to label the gridlines}
 
 \item{axis.label.offset}{vertical displacement of axis labels from maximum grid line, measured relative to circle diameter}
 
