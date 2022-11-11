@@ -234,7 +234,7 @@ ggradar <- function(plot.data,
   # + radial axes
   base <- base + geom_path(
     data = axis$path, aes(x = x, y = y, group = axis.no),
-    colour = axis.line.colour
+    colour = axis.line.colour,size = grid.line.width
   )
 
   theGroupName <- names(group$path[1])
